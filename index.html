@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="The Loop - Progressive Web App สำหรับแสดงผลสื่อแบบต่อเนื่อง">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <title>The Loop</title>
+</head>
+<body>
+    <!-- Main Container -->
+    <div id="app">
+        <!-- Media Display Area -->
+        <div id="media-container">
+            <!-- Image Element -->
+            <img id="media-image" class="media-element" alt="Media content">
+            
+            <!-- Video Element -->
+            <video id="media-video" class="media-element" muted playsinline>
+                Your browser does not support the video tag.
+            </video>
+            
+            <!-- Loading Indicator -->
+            <div id="loading-indicator">
+                <div class="loading-spinner"></div>
+                <p>กำลังโหลด...</p>
+            </div>
+        </div>
+        
+        <!-- Control Overlay -->
+        <div id="control-overlay" class="hidden">
+            <!-- Left Control Area (Previous) -->
+            <div id="control-left" class="control-area control-left">
+                <div class="control-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Center Control Area (Play/Pause) -->
+            <div id="control-center" class="control-area control-center">
+                <div class="control-icon" id="play-pause-btn">
+                    <!-- Play Icon -->
+                    <svg id="play-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <!-- Pause Icon -->
+                    <svg id="pause-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Right Control Area (Next) -->
+            <div id="control-right" class="control-area control-right">
+                <div class="control-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div id="progress-container" class="hidden">
+            <div id="progress-bar">
+                <div id="progress-fill"></div>
+            </div>
+        </div>
+        
+        <!-- Media Info -->
+        <div id="media-info" class="hidden">
+            <div class="media-counter">
+                <span id="current-index">1</span> / <span id="total-count">0</span>
+            </div>
+        </div>
+        
+        <!-- Upload Button -->
+        <div id="upload-button" class="upload-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+            </svg>
+        </div>
+        
+        <!-- Hidden File Input -->
+        <input type="file" id="file-input" multiple 
+               accept="image/*,video/*" 
+               capture="environment" 
+               style="display: none;">
+        
+        <!-- Upload Modal -->
+        <div id="upload-modal" class="upload-modal hidden">
+            <div class="upload-modal-content">
+                <div class="upload-modal-header">
+                    <h3>เพิ่มสื่อของคุณ</h3>
+                    <button id="close-modal" class="close-btn">&times;</button>
+                </div>
+                <div class="upload-modal-body">
+                    <div class="upload-options">
+                        <button id="upload-from-device" class="upload-option-btn">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                            <span>เลือกจากอุปกรณ์</span>
+                        </button>
+                        <button id="take-photo" class="upload-option-btn">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"/>
+                            </svg>
+                            <span>ถ่ายรูป/วิดีโอ</span>
+                        </button>
+                        <button id="load-local-video" class="upload-option-btn">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/>
+                            </svg>
+                            <span>โหลดวิดีโอในเครื่อง</span>
+                        </button>
+                        <button id="add-youtube-url" class="upload-option-btn">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10,15L15.19,12L10,9V15M21.56,7.17C21.69,7.64 21.78,8.27 21.84,9.07C21.91,9.87 21.94,10.56 21.94,11.16L22,12C22,14.19 21.84,15.8 21.56,16.83C21.31,17.73 20.73,18.31 19.83,18.56C19.36,18.69 18.5,18.78 17.18,18.84C15.88,18.91 14.69,18.94 13.59,18.94L12,19C7.81,19 5.2,18.84 4.17,18.56C3.27,18.31 2.69,17.73 2.44,16.83C2.31,16.36 2.22,15.73 2.16,14.93C2.09,14.13 2.06,13.44 2.06,12.84L2,12C2,9.81 2.16,8.2 2.44,7.17C2.69,6.27 3.27,5.69 4.17,5.44C4.64,5.31 5.5,5.22 6.82,5.16C8.12,5.09 9.31,5.06 10.41,5.06L12,5C16.19,5 18.8,5.16 19.83,5.44C20.73,5.69 21.31,6.27 21.56,7.17Z"/>
+                            </svg>
+                            <span>เพิ่ม YouTube URL</span>
+                        </button>
+                    </div>
+                    <div id="upload-preview" class="upload-preview hidden">
+                        <h4>ไฟล์ที่เลือก:</h4>
+                        <div id="preview-list" class="preview-list"></div>
+                        <div class="upload-actions">
+                            <button id="clear-selection" class="btn-secondary">ล้างทั้งหมด</button>
+                            <button id="add-to-playlist" class="btn-primary">เพิ่มในเพลย์ลิสต์</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
+
