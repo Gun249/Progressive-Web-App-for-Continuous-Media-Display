@@ -401,3 +401,21 @@ async function clearAllCaches() {
     }
 }
 
+/**
+ * Event: Error
+ * จัดการข้อผิดพลาดทั่วไป
+ */
+self.addEventListener('error', (event) => {
+    console.error('❌ Service Worker Error:', event.error);
+    event.preventDefault();
+});
+
+/**
+ * Event: Unhandled Promise Rejection
+ * จัดการ Promise ที่ reject แล้วไม่มีการจัดการ
+ */
+self.addEventListener('unhandledrejection', (event) => {
+    console.error('❌ Unhandled Promise Rejection:', event.reason);
+    event.preventDefault();
+});
+

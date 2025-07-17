@@ -174,7 +174,7 @@ class TheLoopApp {
             this.selectFilesFromDevice();
         });
         
-        // เปิดกล้องสำหรับถ่ายรูป/วิดีโอ
+        // เปิดกล้องสำหรับถ่ายรูป
         this.elements.takePhoto.addEventListener('click', () => {
             this.captureFromCamera();
         });
@@ -830,6 +830,442 @@ class TheLoopApp {
     }
 
     /**
+     * แสดง Upload Modal
+     * เปิด modal สำหรับอัปโหลดไฟล์ใหม่
+     */
+    showUploadModal() {
+        this.elements.uploadModal.classList.add('visible');
+        this.elements.uploadModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // ป้องกันการ scroll ของ body
+    }
+
+    /**
+     * ซ่อน Upload Modal
+     * ปิด modal การอัปโหลดไฟล์
+     */
+    hideUploadModal() {
+        this.elements.uploadModal.classList.add('hidden');
+        this.elements.uploadModal.classList.remove('visible');
+        document.body.style.overflow = ''; // คืนค่าการ scroll ของ body
+    }
+
+    /**
+     * เลือกไฟล์จากอุปกรณ์
+     * เปิด file picker สำหรับเลือกไฟล์
+     */
+    selectFilesFromDevice() {
+        this.elements.fileInput.accept = 'image/*,video/*'; // รับทั้งรูปและวิดีโอ
+        this.elements.fileInput.multiple = true; // เลือกหลายไฟล์ได้
+        this.elements.fileInput.click();
+    }
+
+    /**
+     * เปิดกล้องสำหรับถ่ายรูป/วิดีโอ
+     * ใช้ Camera API ของเบราว์เซอร์
+     */
+    async captureFromCamera() {
+        try {
+            // ขอ permission สำหรับใช้กล้อง
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: true, 
+                audio: true 
+            });
+            
+            // สร้าง video element สำหรับแสดง camera preview
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.autoplay = true;
+            video.muted = true;
+            
+            // สร้าง canvas สำหรับ capture
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // สร้าง UI สำหรับ camera
+            this.showCameraInterface(video, canvas, stream);
+            
+        } catch (error) {
+            console.error('❌ ไม่สามารถเข้าถึงกล้องได้:', error);
+            this.showErrorMessage('ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตการใช้งานกล้อง');
+        }
+    }
+
+    /**
+     * แสดง Camera Interface
+     * @param {HTMLVideoElement} video 
+     * @param {HTMLCanvasElement} canvas 
+     * @param {MediaStream} stream 
+     */
+    showCameraInterface(video, canvas, stream) {
+        // สร้าง camera modal
+        const cameraModal = document.createElement('div');
+        cameraModal.className = 'camera-modal';
+        cameraModal.innerHTML = `
+            <div class="camera-container">
+                <div class="camera-preview"></div>
+                <div class="camera-controls">
+                    <button id="capture-photo">📷 ถ่ายรูป</button>
+                    <button id="start-record">🎥 บันทึกวิดีโอ</button>
+                    <button id="close-camera">❌ ปิด</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(cameraModal);
+        cameraModal.querySelector('.camera-preview').appendChild(video);
+        
+        // Event listeners สำหรับ camera controls
+        const captureBtn = cameraModal.querySelector('#capture-photo');
+        const recordBtn = cameraModal.querySelector('#start-record');
+        const closeBtn = cameraModal.querySelector('#close-camera');
+        
+        captureBtn.addEventListener('click', () => {
+            this.capturePhoto(video, canvas);
+        });
+        
+        recordBtn.addEventListener('click', () => {
+            this.startVideoRecording(stream);
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            this.closeCameraInterface(cameraModal, stream);
+        });
+    }
+
+    /**
+     * ถ่ายรูป
+     * @param {HTMLVideoElement} video 
+     * @param {HTMLCanvasElement} canvas 
+     */
+    capturePhoto(video, canvas) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        canvas.toBlob((blob) => {
+            const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            this.addFileToSelection(file);
+            this.showSuccessMessage('ถ่ายรูปสำเร็จ!');
+        }, 'image/jpeg', 0.9);
+    }
+
+    /**
+     * เริ่มบันทึกวิดีโอ
+     * @param {MediaStream} stream 
+     */
+    startVideoRecording(stream) {
+        // Implementation for video recording would go here
+        this.showErrorMessage('ฟีเจอร์บันทึกวิดีโอยังไม่พร้อมใช้งาน');
+    }
+
+    /**
+     * ปิด Camera Interface
+     * @param {HTMLElement} cameraModal 
+     * @param {MediaStream} stream 
+     */
+    closeCameraInterface(cameraModal, stream) {
+        // หยุด camera stream
+        stream.getTracks().forEach(track => track.stop());
+        
+        // ลบ camera modal
+        document.body.removeChild(cameraModal);
+    }
+
+    /**
+     * เพิ่ม YouTube URL
+     * แสดง prompt สำหรับใส่ YouTube URL
+     */
+    promptYouTubeUrl() {
+        const url = prompt('กรุณาใส่ YouTube URL:');
+        
+        if (url && this.isYouTubeUrl(url)) {
+            const videoId = this.extractYouTubeVideoId(url);
+            if (videoId) {
+                const youtubeMedia = {
+                    type: 'youtube',
+                    url: url,
+                    videoId: videoId,
+                    name: `YouTube Video: ${videoId}`,
+                    duration: 30000, // ค่าเริ่มต้น 30 วินาที
+                    isUserUpload: true
+                };
+                
+                this.addMediaToSelection(youtubeMedia);
+                this.showSuccessMessage('เพิ่ม YouTube URL สำเร็จ!');
+            } else {
+                this.showErrorMessage('ไม่สามารถแยก Video ID ได้');
+            }
+        } else if (url) {
+            this.showErrorMessage('URL ไม่ใช่ YouTube URL ที่ถูกต้อง');
+        }
+    }
+
+    /**
+     * จัดการเมื่อผู้ใช้เลือกไฟล์
+     * @param {FileList} files 
+     */
+    handleFileSelection(files) {
+        Array.from(files).forEach(file => {
+            this.addFileToSelection(file);
+        });
+        
+        this.showSuccessMessage(`เลือกไฟล์ ${files.length} ไฟล์`);
+    }
+
+    /**
+     * เพิ่มไฟล์เข้าในรายการที่เลือก
+     * @param {File} file 
+     */
+    addFileToSelection(file) {
+        const media = this.createMediaFromFile(file);
+        this.addMediaToSelection(media);
+    }
+
+    /**
+     * เพิ่ม Media เข้าในรายการที่เลือก
+     * @param {Object} media 
+     */
+    addMediaToSelection(media) {
+        this.selectedFiles.push(media);
+        this.updatePreviewList();
+        this.showUploadPreview();
+    }
+
+    /**
+     * สร้าง Media Object จาก File
+     * @param {File} file 
+     * @returns {Object}
+     */
+    createMediaFromFile(file) {
+        const url = URL.createObjectURL(file);
+        const isVideo = file.type.startsWith('video/');
+        
+        return {
+            type: isVideo ? 'video' : 'image',
+            url: url,
+            name: file.name,
+            size: file.size,
+            duration: isVideo ? 0 : 5000, // รูปภาพ 5 วินาที, วิดีโอจะใช้ความยาวจริง
+            isUserUpload: true,
+            file: file
+        };
+    }
+
+    /**
+     * อัปเดตรายการตัวอย่างไฟล์ที่เลือก
+     */
+    updatePreviewList() {
+        const previewList = this.elements.previewList;
+        previewList.innerHTML = '';
+        
+        this.selectedFiles.forEach((media, index) => {
+            const previewItem = this.createPreviewItem(media, index);
+            previewList.appendChild(previewItem);
+        });
+        
+        // แสดง/ซ่อนปุ่มตามจำนวนไฟล์
+        const hasFiles = this.selectedFiles.length > 0;
+        this.elements.clearSelection.style.display = hasFiles ? 'block' : 'none';
+        this.elements.addToPlaylist.style.display = hasFiles ? 'block' : 'none';
+    }
+
+    /**
+     * สร้างรายการตัวอย่างไฟล์
+     * @param {Object} media 
+     * @param {number} index 
+     * @returns {HTMLElement}
+     */
+    createPreviewItem(media, index) {
+        const item = document.createElement('div');
+        item.className = 'preview-item';
+        item.innerHTML = `
+            <div class="preview-thumbnail">
+                ${media.type === 'image' ? 
+                    `<img src="${media.url}" alt="${media.name}">` : 
+                    media.type === 'video' ?
+                    `<video src="${media.url}" muted></video>` :
+                    `<div class="youtube-thumb">▶️ YouTube</div>`
+                }
+            </div>
+            <div class="preview-info">
+                <div class="preview-name">${media.name}</div>
+                <div class="preview-type">${media.type.toUpperCase()}</div>
+            </div>
+            <button class="remove-preview" data-index="${index}">❌</button>
+        `;
+        
+        // Event listener สำหรับปุ่มลบ
+        const removeBtn = item.querySelector('.remove-preview');
+        removeBtn.addEventListener('click', () => {
+            this.removeFromSelection(index);
+        });
+        
+        return item;
+    }
+
+    /**
+     * ลบไฟล์จากรายการที่เลือก
+     * @param {number} index 
+     */
+    removeFromSelection(index) {
+        const media = this.selectedFiles[index];
+        
+        // ปล่อย Object URL ถ้าเป็น blob
+        if (media.url && media.url.startsWith('blob:')) {
+            URL.revokeObjectURL(media.url);
+        }
+        
+        this.selectedFiles.splice(index, 1);
+        this.updatePreviewList();
+        
+        if (this.selectedFiles.length === 0) {
+            this.hideUploadPreview();
+        }
+    }
+
+    /**
+     * ล้างไฟล์ที่เลือกทั้งหมด
+     */
+    clearSelectedFiles() {
+        // ปล่อย Object URLs ทั้งหมด
+        this.selectedFiles.forEach(media => {
+            if (media.url && media.url.startsWith('blob:')) {
+                URL.revokeObjectURL(media.url);
+            }
+        });
+        
+        this.selectedFiles = [];
+        this.updatePreviewList();
+        this.hideUploadPreview();
+    }
+
+    /**
+     * เพิ่มไฟล์ที่เลือกเข้าในเพลย์ลิสต์
+     */
+    addFilesToPlaylist() {
+        if (this.selectedFiles.length === 0) {
+            this.showErrorMessage('ไม่มีไฟล์ที่เลือก');
+            return;
+        }
+        
+        // เพิ่มไฟล์เข้าในเพลย์ลิสต์
+        this.selectedFiles.forEach(media => {
+            this.mediaList.push({ ...media });
+            this.uploadedFiles.push({ ...media });
+        });
+        
+        // อัปเดต UI
+        this.elements.totalCountSpan.textContent = this.mediaList.length;
+        
+        // ล้างรายการที่เลือก
+        this.selectedFiles = [];
+        this.updatePreviewList();
+        this.hideUploadPreview();
+        this.hideUploadModal();
+        
+        this.showSuccessMessage(`เพิ่มไฟล์เข้าในเพลย์ลิสต์สำเร็จ!`);
+    }
+
+    /**
+     * แสดงตัวอย่างการอัปโหลด
+     */
+    showUploadPreview() {
+        this.elements.uploadPreview.classList.add('visible');
+        this.elements.uploadPreview.classList.remove('hidden');
+    }
+
+    /**
+     * ซ่อนตัวอย่างการอัปโหลด
+     */
+    hideUploadPreview() {
+        this.elements.uploadPreview.classList.add('hidden');
+        this.elements.uploadPreview.classList.remove('visible');
+    }
+
+    /**
+     * ลบไฟล์จากเพลย์ลิสต์
+     * @param {number} index 
+     */
+    removeFromPlaylist(index) {
+        const media = this.mediaList[index];
+        
+        // ปล่อย Object URL ถ้าเป็น user upload
+        if (media.isUserUpload && media.url && media.url.startsWith('blob:')) {
+            URL.revokeObjectURL(media.url);
+        }
+        
+        this.mediaList.splice(index, 1);
+        this.elements.totalCountSpan.textContent = this.mediaList.length;
+        
+        // ลบจาก uploadedFiles ด้วย
+        const uploadIndex = this.uploadedFiles.findIndex(file => file.url === media.url);
+        if (uploadIndex !== -1) {
+            this.uploadedFiles.splice(uploadIndex, 1);
+        }
+    }
+
+    /**
+     * แสดงข้อความสำเร็จ
+     * @param {string} message 
+     */
+    showSuccessMessage(message) {
+        this.showMessage(message, 'success');
+    }
+
+    /**
+     * แสดงข้อความผิดพลาด
+     * @param {string} message 
+     */
+    showErrorMessage(message) {
+        this.showMessage(message, 'error');
+    }
+
+    /**
+     * แสดงข้อความ
+     * @param {string} message 
+     * @param {string} type 
+     */
+    showMessage(message, type = 'info') {
+        // สร้าง toast message
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            z-index: 10000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // แสดง toast
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(0)';
+        });
+        
+        // ซ่อน toast หลัง 3 วินาที
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 3000);
+    }
+
+    /**
      * ล้าง Timers ทั้งหมด
      * หยุดการทำงานของ timers ทั้งหมดเพื่อป้องกัน memory leak
      */
@@ -1197,6 +1633,231 @@ class TheLoopApp {
         }
     }
     
+    /**
+     * ล้าง Blob URLs เก่า
+     * ล้าง blob URLs ที่อาจถูกเก็บไว้ใน memory
+     */
+    cleanupOldBlobUrls() {
+        // ล้าง blob URLs ในสื่อที่อัปโหลด
+        this.uploadedFiles.forEach(media => {
+            if (media.url && media.url.startsWith('blob:')) {
+                URL.revokeObjectURL(media.url);
+            }
+        });
+        
+        // ล้างรายการสื่อที่เป็น user upload
+        this.mediaList = this.mediaList.filter(media => !media.isUserUpload);
+        this.uploadedFiles = [];
+        
+        // อัปเดต UI
+        this.elements.totalCountSpan.textContent = this.mediaList.length;
+        
+        // ถ้าไม่มีสื่อเหลือ ให้โหลดสื่อตัวอย่างใหม่
+        if (this.mediaList.length === 0) {
+            this.loadSampleMedia();
+            this.currentIndex = 0;
+            this.updateMediaInfo();
+            this.startSlideshow();
+        } else {
+            // ปรับ index ถ้าจำเป็น
+            if (this.currentIndex >= this.mediaList.length) {
+                this.currentIndex = 0;
+            }
+            this.updateMediaInfo();
+            this.playCurrentMedia();
+        }
+        
+        console.log('🧹 ล้าง Blob URLs เก่าแล้ว');
+    }
+
+    /**
+     * เซ็ตอัพการล้าง Cache อัตโนมัติ
+     * ล้าง cache ทุก 30 นาที และเมื่อแอปเริ่มต้น
+     */
+    setupAutoCacheClear() {
+        // ล้าง cache เมื่อเริ่มต้นแอป
+        this.clearBrowserCache();
+        
+        // ล้าง cache อัตโนมัติทุก 30 นาที
+        setInterval(() => {
+            this.clearBrowserCache();
+            console.log('🧹 Auto cache clear ทำงานแล้ว');
+        }, 30 * 60 * 1000); // 30 นาที
+        
+        console.log('✅ Auto cache clear เปิดใช้งานแล้ว (ทุก 30 นาที)');
+    }
+    
+    /**
+     * สร้างปุ่มล้าง Cache
+     * เพิ่มปุ่มล้าง cache ในมุมบนซ้าย
+     */
+    createClearCacheButton() {
+        // สร้างปุ่มล้าง cache
+        const clearCacheBtn = document.createElement('button');
+        clearCacheBtn.id = 'clear-cache-btn';
+        clearCacheBtn.innerHTML = '🧹 ล้าง Cache';
+        clearCacheBtn.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        `;
+        
+        // เพิ่ม hover effect
+        clearCacheBtn.onmouseenter = () => {
+            clearCacheBtn.style.background = 'rgba(34, 197, 94, 0.8)';
+            clearCacheBtn.style.transform = 'scale(1.05)';
+        };
+        clearCacheBtn.onmouseleave = () => {
+            clearCacheBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+            clearCacheBtn.style.transform = 'scale(1)';
+        };
+        
+        // เพิ่ม event listener
+        clearCacheBtn.addEventListener('click', () => {
+            this.manualCacheClear();
+        });
+        
+        // เพิ่มเข้าไปใน DOM
+        document.body.appendChild(clearCacheBtn);
+        this.elements.clearCacheBtn = clearCacheBtn;
+        
+        console.log('✅ สร้างปุ่มล้าง Cache แล้ว');
+    }
+    
+    /**
+     * ล้าง Browser Cache
+     * ล้าง cache ทั้งหมดของเบราว์เซอร์
+     */
+    async clearBrowserCache() {
+        try {
+            // ล้าง Service Worker Cache
+            if ('serviceWorker' in navigator && 'caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+                console.log('🧹 ล้าง Service Worker Cache แล้ว');
+            }
+            
+            // ล้าง localStorage
+            if (typeof(Storage) !== "undefined") {
+                localStorage.clear();
+                sessionStorage.clear();
+                console.log('🧹 ล้าง Local Storage แล้ว');
+            }
+            
+            // ล้าง IndexedDB (ถ้ามี)
+            if ('indexedDB' in window) {
+                try {
+                    // ลิสต์ databases ที่อาจมี
+                    const dbsToDelete = ['theloop-pwa', 'media-cache', 'user-data'];
+                    
+                    for (const dbName of dbsToDelete) {
+                        const deleteRequest = indexedDB.deleteDatabase(dbName);
+                        deleteRequest.onsuccess = () => {
+                            console.log(`🧹 ล้าง IndexedDB: ${dbName}`);
+                        };
+                    }
+                } catch (error) {
+                    console.log('⚠️ ไม่สามารถล้าง IndexedDB ได้:', error);
+                }
+            }
+            
+            // ล้าง Blob URLs ที่เก่า
+            this.cleanupOldBlobUrls();
+            
+            console.log('✅ ล้าง Browser Cache สำเร็จ');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ เกิดข้อผิดพลาดในการล้าง Cache:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * ล้าง Cache แบบ Manual
+     * เรียกใช้เมื่อผู้ใช้กดปุ่มล้าง cache
+     */
+    async manualCacheClear() {
+        // แสดง loading บนปุ่ม
+        const originalText = this.elements.clearCacheBtn.innerHTML;
+        this.elements.clearCacheBtn.innerHTML = '🔄 กำลังล้าง...';
+        this.elements.clearCacheBtn.disabled = true;
+        
+        const success = await this.clearBrowserCache();
+        
+        if (success) {
+            this.showSuccessMessage('ล้าง Cache สำเร็จ! 🧹');
+            
+            // แสดงผลสำเร็จบนปุ่ม
+            this.elements.clearCacheBtn.innerHTML = '✅ ล้างแล้ว';
+            this.elements.clearCacheBtn.style.background = 'rgba(34, 197, 94, 0.8)';
+            
+            // กลับไปเป็นปกติหลัง 2 วินาที
+            setTimeout(() => {
+                this.elements.clearCacheBtn.innerHTML = originalText;
+                this.elements.clearCacheBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+                this.elements.clearCacheBtn.disabled = false;
+            }, 2000);
+            
+        } else {
+            this.showErrorMessage('เกิดข้อผิดพลาดในการล้าง Cache');
+            
+            // กลับไปเป็นปกติ
+            this.elements.clearCacheBtn.innerHTML = originalText;
+            this.elements.clearCacheBtn.disabled = false;
+        }
+    }
+    
+    /**
+     * ล้าง Blob URLs เก่า
+     * ล้าง blob URLs ที่อาจถูกเก็บไว้ใน memory
+     */
+    cleanupOldBlobUrls() {
+        // ล้าง blob URLs ในสื่อที่อัปโหลด
+        this.uploadedFiles.forEach(media => {
+            if (media.url && media.url.startsWith('blob:')) {
+                URL.revokeObjectURL(media.url);
+            }
+        });
+        
+        // ล้างรายการสื่อที่เป็น user upload
+        this.mediaList = this.mediaList.filter(media => !media.isUserUpload);
+        this.uploadedFiles = [];
+        
+        // อัปเดต UI
+        this.elements.totalCountSpan.textContent = this.mediaList.length;
+        
+        // ถ้าไม่มีสื่อเหลือ ให้โหลดสื่อตัวอย่างใหม่
+        if (this.mediaList.length === 0) {
+            this.loadSampleMedia();
+            this.currentIndex = 0;
+            this.updateMediaInfo();
+            this.startSlideshow();
+        } else {
+            // ปรับ index ถ้าจำเป็น
+            if (this.currentIndex >= this.mediaList.length) {
+                this.currentIndex = 0;
+            }
+            this.updateMediaInfo();
+            this.playCurrentMedia();
+        }
+        
+        console.log('🧹 ล้าง Blob URLs เก่าแล้ว');
+    }
+
     /**
      * ทำลาย App (สำหรับการ cleanup)
      * ล้างข้อมูลและปล่อย resources ทั้งหมดเพื่อป้องกัน memory leak
